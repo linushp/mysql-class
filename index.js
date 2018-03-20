@@ -27,6 +27,7 @@ function toWhereSql(queryCondition) {
 function MySQLWrapper(dbModel, connectionPool) {
     this.dbModel = dbModel;
     this.connectionPool = connectionPool;
+    this.createSpringDataJpaFunction();
 }
 
 
@@ -54,6 +55,7 @@ MySQLWrapper.prototype.doExecuteSql = function (requestModel) {
     var sql = requestModel['sql'];
     var params = requestModel['params'] || [];
 
+    console.log(sql);
 
     const that = this;
     return new Promise(function (resolve, reject) {
@@ -235,6 +237,178 @@ MySQLWrapper.prototype.saveOrUpdateById = function (updateObject, id) {
 };
 
 
+
+
+
+
+
+function isJpaKeyword(word) {
+    var jpakeyword = ["Not","In","Null","Like","Between","LessThan","GreaterThan"];
+    for (var i = 0; i < jpakeyword.length; i++) {
+        var obj = jpakeyword[i];
+        if(obj === word){
+            return true;
+        }
+    }
+    return false;
+}
+
+
+
+MySQLWrapper.prototype._autoAddEquals = function (expressString) {
+    var that = this;
+    var expressArray = expressString.replace(/([A-Z])/g,"-$1").split("-");
+    //"Name", "And", "Sex"
+    expressArray.push("");
+
+    var expressArray2 = [];
+    for (var i = 0; i < expressArray.length; i++) {
+        var word = expressArray[i];
+        expressArray2.push(word);
+
+        var wordLower = word.toLowerCase();
+        if(that.isTableField(wordLower)){
+            var nextWorld = expressArray[i+1];
+            if(!nextWorld || !isJpaKeyword(nextWorld)){
+                expressArray2.push("Equals");
+            }
+        }
+    }
+
+    return expressArray2.join("");
+
+};
+
+
+function addStringLabel(arr) {
+    var arr2 = [];
+    for (var i = 0; i < arr.length; i++) {
+        var a = arr[i];
+        if(a){
+            if(typeof a === "string"){
+                a = "'"+ a +"'";
+            }
+            arr2.push(a);
+        }
+    }
+    return arr2;
+}
+
+
+
+MySQLWrapper.prototype._createFindByFunction = function (modelKey) {
+    var expressString = modelKey.replace(/^findBy/,"");
+    expressString = this._autoAddEquals(expressString);
+
+    var sql = "select * from `" + this.dbModel.tableName + "` where ";
+
+
+    // ageAndName
+
+    var that = this;
+    var beginIndex = 0 ;
+    var endIndex =0;
+    while (endIndex < expressString.length){
+        var word = expressString.slice(beginIndex,endIndex+1);
+
+        var wordLower = word.toLowerCase();
+        if(that.isTableField(wordLower) ){
+            sql += " `" +wordLower + "`   ";
+            beginIndex  += word.length;
+        }
+
+        else if(word === "And"){
+            sql +=" and ";
+            beginIndex  += word.length;
+        }
+
+        else if(word === "Or"){
+            sql +=" or ";
+            beginIndex  += word.length;
+        }
+        else if(word === "Is"){
+            sql +=" is ";
+            beginIndex  += word.length;
+        }
+        else if(word === "Not"){
+            sql +=" not ";
+            beginIndex  += word.length;
+        }
+        else if(word === "Null"){
+            sql +=" null ";
+            beginIndex  += word.length;
+        }
+        else if(word === "Like"){
+            sql +=" like '%?%'";
+            beginIndex  += word.length;
+        }
+        else if(word === "In"){
+            sql +=" in (ID_IN_STRING)";
+            beginIndex  += word.length;
+        }
+        else if(word === "Equals"){
+            sql +=" = ? ";
+            beginIndex  += word.length;
+        }
+        else if(word === "LessThan"){
+            sql +=" < ? ";
+            beginIndex  += word.length;
+        }
+        else if(word === "GreaterThan"){
+            sql +=" > ? ";
+            beginIndex  += word.length;
+        }
+
+        else if(word === "Between"){
+            sql +=" between (?,?) ";
+            beginIndex  += word.length;
+        }
+
+        endIndex++;
+    }
+
+
+    sql=sql.replace(/\s+/gm,' ')
+    // console.log(sql);
+    return function () {
+
+        var sql2 = "" + sql;
+
+        var args = Array.prototype.slice.apply(arguments);
+
+        var args2 = [];
+        for (var i = 0; i < args.length; i++) {
+            var arg = args[i];
+            if (Array.isArray(arg)) {
+                var ID_IN_STRING =  addStringLabel(arg).join(",");
+                sql2 = sql2.replace("ID_IN_STRING",ID_IN_STRING);
+            }else {
+                args2.push(arg);
+            }
+        }
+
+        return this.doExecuteSql({
+            sql: sql2,
+            params: args2
+        });
+
+    };
+};
+
+
+
+MySQLWrapper.prototype.createSpringDataJpaFunction = function () {
+    var that = this;
+    var dbModel = this.dbModel;
+    var modelKeys = Object.keys(dbModel);
+    for (var i = 0; i < modelKeys.length; i++) {
+        var modelKey = modelKeys[i];
+        if(modelKey.indexOf("findBy")===0){
+            that[modelKey] = that._createFindByFunction(modelKey);
+        }
+    }
+};
+
 module.exports = {
     MySQLWrapper: MySQLWrapper
 };
@@ -244,14 +418,33 @@ module.exports = {
 // var PersonModel = {
 //     tableName: "aaa.t_person",
 //     tableFields: [
-//         "id", "name", "update_time", "create_time"
-//     ]
+//         "id", "name","age","sex","firstname", "update_time", "create_time"
+//     ],
+//     "findByName":null,
+//     "findByNameEquals":function (name) {},
+//     "findByNameEqualsAndSexEquals ":function (name) {},
+//     "findByNameAndSex":function (name) {},
+//     "findBySexAndNameOrAgeIn":function (sex,age,ageArray) {},
+//     "findBySexEqOrAgeEq":function (sex,age) {},
+//     "findByAgeIn":null,
+//     "findByAgeNotIn":null,
+//     "findByNameIsNull":null,
+//     "findByNameIsNotNull":null,
+//     "findByFirstnameLike":null,
+//     "findByFirstnameNotLike":null,
+//     "findByCreate_timeNotBetweenAndName":null,
 // };
 //
-// var mm = new MySQLWrapper(PersonModel);
+// var PersonDAO = new MySQLWrapper(PersonModel,null);
 //
 // var idListString = [1, 2, 3, 4, 5, 6, 7].join(",");
-// mm.doExecuteSql({
+// PersonDAO.doExecuteSql({
 //     sql: `select * from ${PersonModel.tableName} where id in(${idListString})`,
 //     params: []
 // });
+//
+// PersonDAO.findByName("zhang");
+// PersonDAO.findByAgeIn(["1",2,3]);
+//
+// PersonDAO.doQueryByWhereSql("name = ? and sex = ?" , ["luan",1]);
+// PersonDAO.doQueryByWhereSql(`age in (${idListString})`);
