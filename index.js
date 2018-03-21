@@ -369,7 +369,7 @@ MySQLWrapper.prototype._createFindByFunction = function (modelKey) {
 
 
     sql=sql.replace(/\s+/gm,' ')
-    // console.log(sql);
+    console.log(sql);
     return function () {
 
         var sql2 = "" + sql;
@@ -409,17 +409,16 @@ MySQLWrapper.prototype.createSpringDataJpaFunction = function () {
     }
 };
 
-module.exports = {
-    MySQLWrapper: MySQLWrapper
-};
+module.exports =  MySQLWrapper ;
 
-
+//
 //
 // var PersonModel = {
 //     tableName: "aaa.t_person",
 //     tableFields: [
 //         "id", "name","age","sex","firstname", "update_time", "create_time"
 //     ],
+//     "findByIdOrNameLike":null,
 //     "findByName":null,
 //     "findByNameEquals":function (name) {},
 //     "findByNameEqualsAndSexEquals ":function (name) {},
