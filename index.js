@@ -24,21 +24,21 @@ function toWhereSql(queryCondition) {
 }
 
 
-function MySQLWrapper(dbModel, connectionPool) {
+function SimpleDAO(dbModel, connectionPool) {
     this.dbModel = dbModel;
     this.connectionPool = connectionPool;
     this.createSpringDataJpaFunction();
 }
 
 
-MySQLWrapper.prototype.getConnectionPool = function () {
+SimpleDAO.prototype.getConnectionPool = function () {
     if (this.connectionPool) {
         return this.connectionPool;
     }
 };
 
 
-MySQLWrapper.prototype.isTableField = function (fieldName) {
+SimpleDAO.prototype.isTableField = function (fieldName) {
     var tableFields = this.dbModel.tableFields;
     for (var j = 0; j < tableFields.length; j++) {
         var obj1 = tableFields[j];
@@ -50,7 +50,7 @@ MySQLWrapper.prototype.isTableField = function (fieldName) {
 };
 
 
-MySQLWrapper.prototype.doExecuteSql = function (requestModel) {
+SimpleDAO.prototype.doExecuteSql = function (requestModel) {
 
     var sql = requestModel['sql'];
     var params = requestModel['params'] || [];
@@ -84,7 +84,7 @@ MySQLWrapper.prototype.doExecuteSql = function (requestModel) {
 };
 
 
-MySQLWrapper.prototype.doQueryByWhereSql = function (whereSql, whereValues) {
+SimpleDAO.prototype.doQueryByWhereSql = function (whereSql, whereValues) {
     var tableName = this.dbModel.tableName;
     return this.doExecuteSql({
         sql: "select * from `" + tableName + "` where " + whereSql,
@@ -93,13 +93,13 @@ MySQLWrapper.prototype.doQueryByWhereSql = function (whereSql, whereValues) {
 };
 
 
-MySQLWrapper.prototype.doQuery = function (queryCondition, sql_suffix) {
+SimpleDAO.prototype.doQuery = function (queryCondition, sql_suffix) {
     var mm = toWhereSql(queryCondition);
     var whereSql = mm.whereSql + " " + (sql_suffix || "");
     return this.doQueryByWhereSql(whereSql, mm.values);
 };
 
-MySQLWrapper.prototype.doCount = function (queryCondition) {
+SimpleDAO.prototype.doCount = function (queryCondition) {
     var mm = toWhereSql(queryCondition);
     var tableName = this.dbModel.tableName;
     return this.doExecuteSql({
@@ -109,17 +109,17 @@ MySQLWrapper.prototype.doCount = function (queryCondition) {
 };
 
 
-MySQLWrapper.prototype.doQueryById = function (id) {
+SimpleDAO.prototype.doQueryById = function (id) {
     return this.doQuery({"id": id});
 };
 
 
-MySQLWrapper.prototype.doQueryByName = function (name) {
+SimpleDAO.prototype.doQueryByName = function (name) {
     return this.doQuery({"name": name});
 };
 
 
-MySQLWrapper.prototype.doDeleteByWhereSql = function (whereSql, whereValues) {
+SimpleDAO.prototype.doDeleteByWhereSql = function (whereSql, whereValues) {
     var tableName = this.dbModel.tableName;
     return this.doExecuteSql({
         sql: "delete from `" + tableName + "` where " + whereSql,
@@ -127,17 +127,17 @@ MySQLWrapper.prototype.doDeleteByWhereSql = function (whereSql, whereValues) {
     });
 };
 
-MySQLWrapper.prototype.doDelete = function (queryCondition) {
+SimpleDAO.prototype.doDelete = function (queryCondition) {
     var mm = toWhereSql(queryCondition);
     return this.doDeleteByWhereSql(mm.whereSql, mm.values);
 };
 
-MySQLWrapper.prototype.doDeleteById = function (id) {
+SimpleDAO.prototype.doDeleteById = function (id) {
     return this.doDelete({id: id});
 };
 
 
-MySQLWrapper.prototype.doInsert = function (insertObject) {
+SimpleDAO.prototype.doInsert = function (insertObject) {
 
     insertObject['update_time'] = new Date().getTime();
     insertObject['create_time'] = new Date().getTime();
@@ -174,7 +174,7 @@ MySQLWrapper.prototype.doInsert = function (insertObject) {
 };
 
 
-MySQLWrapper.prototype.doUpdateByWhereSql = function (updateObject, whereSql, whereValues) {
+SimpleDAO.prototype.doUpdateByWhereSql = function (updateObject, whereSql, whereValues) {
     updateObject['update_time'] = new Date().getTime();
 
     let that = this;
@@ -207,7 +207,7 @@ MySQLWrapper.prototype.doUpdateByWhereSql = function (updateObject, whereSql, wh
 };
 
 
-MySQLWrapper.prototype.doUpdate = function (updateObject, whereObject) {
+SimpleDAO.prototype.doUpdate = function (updateObject, whereObject) {
     var mm = toWhereSql(whereObject);
     var whereSql = mm.whereSql;
     var whereValues = mm.values;
@@ -215,12 +215,12 @@ MySQLWrapper.prototype.doUpdate = function (updateObject, whereObject) {
 };
 
 
-MySQLWrapper.prototype.doUpdateById = function (updateObject, id) {
+SimpleDAO.prototype.doUpdateById = function (updateObject, id) {
     return this.doUpdate(updateObject, {id: id});
 };
 
 
-MySQLWrapper.prototype.saveOrUpdate = function (updateObject, whereCondition) {
+SimpleDAO.prototype.saveOrUpdate = function (updateObject, whereCondition) {
     var query_result = this.doQuery(whereCondition);
     return query_result.then(function (result) {
         if (result && result.length > 0) {
@@ -232,7 +232,7 @@ MySQLWrapper.prototype.saveOrUpdate = function (updateObject, whereCondition) {
 };
 
 
-MySQLWrapper.prototype.saveOrUpdateById = function (updateObject, id) {
+SimpleDAO.prototype.saveOrUpdateById = function (updateObject, id) {
     return this.saveOrUpdate(updateObject, {id: id});
 };
 
@@ -255,7 +255,7 @@ function isJpaKeyword(word) {
 
 
 
-MySQLWrapper.prototype._autoAddEquals = function (expressString) {
+SimpleDAO.prototype._autoAddEquals = function (expressString) {
     var that = this;
     var expressArray = expressString.replace(/([A-Z])/g,"-$1").split("-");
     //"Name", "And", "Sex"
@@ -296,7 +296,7 @@ function addStringLabel(arr) {
 
 
 
-MySQLWrapper.prototype._createFindByFunction = function (modelKey) {
+SimpleDAO.prototype._createFindByFunction = function (modelKey) {
     var expressString = modelKey.replace(/^findBy/,"");
     expressString = this._autoAddEquals(expressString);
 
@@ -397,7 +397,7 @@ MySQLWrapper.prototype._createFindByFunction = function (modelKey) {
 
 
 
-MySQLWrapper.prototype.createSpringDataJpaFunction = function () {
+SimpleDAO.prototype.createSpringDataJpaFunction = function () {
     var that = this;
     var dbModel = this.dbModel;
     var modelKeys = Object.keys(dbModel);
@@ -409,7 +409,7 @@ MySQLWrapper.prototype.createSpringDataJpaFunction = function () {
     }
 };
 
-module.exports =  MySQLWrapper ;
+module.exports =  SimpleDAO ;
 
 //
 //
@@ -434,7 +434,7 @@ module.exports =  MySQLWrapper ;
 //     "findByCreate_timeNotBetweenAndName":null,
 // };
 //
-// var PersonDAO = new MySQLWrapper(PersonModel,null);
+// var PersonDAO = new SimpleDAO(PersonModel,null);
 //
 // var idListString = [1, 2, 3, 4, 5, 6, 7].join(",");
 // PersonDAO.doExecuteSql({
