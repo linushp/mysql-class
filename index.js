@@ -339,11 +339,11 @@ SimpleDAO.prototype._createFindByFunction = function (modelKey) {
             beginIndex  += word.length;
         }
         else if(word === "Like"){
-            sql +=" like '%?%'";
+            sql +=" like CONCAT('%',?,'%') ";
             beginIndex  += word.length;
         }
         else if(word === "In"){
-            sql +=" in (ID_IN_STRING)";
+            sql +=" in (ID_IN_STRING) ";
             beginIndex  += word.length;
         }
         else if(word === "Equals"){
