@@ -20,6 +20,5 @@
   },
   "homepage": "https://github.com/luanhaipeng/mysql-class#readme",
   "dependencies": {
-    "mysql": "^2.15.0"
   }
 }
