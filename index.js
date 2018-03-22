@@ -1,5 +1,11 @@
 // "mysql": "^2.15.0"
 
+
+function isFunction(obj) {
+    return Object.prototype.toString.call(obj)  === "[object Function]";
+}
+
+
 function toWhereSql(queryCondition) {
 
     var keys = Object.keys(queryCondition);
@@ -24,18 +30,14 @@ function toWhereSql(queryCondition) {
 }
 
 
-function SimpleDAO(dbModel, connectionPool) {
+function SimpleDAO(dbModel, dbConnection,afterQueryCallback) {
     this.dbModel = dbModel;
-    this.connectionPool = connectionPool;
+    this.dbConnection = dbConnection; //既可是一个connection对象，也可以是一个get方法
+    this.afterQueryCallback = afterQueryCallback;
     this.createSpringDataJpaFunction();
 }
 
 
-SimpleDAO.prototype.getConnectionPool = function () {
-    if (this.connectionPool) {
-        return this.connectionPool;
-    }
-};
 
 
 SimpleDAO.prototype.isTableField = function (fieldName) {
@@ -57,21 +59,29 @@ SimpleDAO.prototype.doExecuteSql = function (requestModel) {
 
     console.log(sql);
 
-    const that = this;
-    return new Promise(function (resolve, reject) {
+    var that = this;
 
-        var pool = that.getConnectionPool();
-        pool.getConnection(function (err1, connection) {
+    var dbConnection = that.dbConnection;
+    var dbConnectionPromise = null;
+    if(isFunction(dbConnection)){
+        dbConnectionPromise = dbConnection(); // 必须Return Promise
+    }else {
+        dbConnectionPromise = Promise.resolve(dbConnection);
+    }
 
-            if (err1) {
-                reject(err1);
-                return;
-            }
 
-            // LogUtils.info(sql);
-
+    return dbConnectionPromise.then(function (connection) {
+        return new Promise(function (resolve, reject) {
             connection.query(sql, params, function (err2, results, fields) {
-                connection.release();
+
+                if(isFunction(that.afterQueryCallback)){
+                    try {
+                        that.afterQueryCallback(connection,err2,results,fields);
+                    }catch (e){
+                        console.log(e);
+                    }
+                }
+
                 if (err2) {
                     reject(err2);
                 } else {
@@ -79,8 +89,8 @@ SimpleDAO.prototype.doExecuteSql = function (requestModel) {
                 }
             });
         });
-
     });
+
 };
 
 
@@ -142,8 +152,8 @@ SimpleDAO.prototype.doInsert = function (insertObject) {
     insertObject['update_time'] = new Date().getTime();
     insertObject['create_time'] = new Date().getTime();
 
-    let that = this;
-    let tableName = that.dbModel.tableName;
+    var that = this;
+    var tableName = that.dbModel.tableName;
     var objectKeys = Object.keys(insertObject);
 
     var insertKeys = [];
@@ -177,7 +187,7 @@ SimpleDAO.prototype.doInsert = function (insertObject) {
 SimpleDAO.prototype.doUpdateByWhereSql = function (updateObject, whereSql, whereValues) {
     updateObject['update_time'] = new Date().getTime();
 
-    let that = this;
+    var that = this;
 
     var objectKeys = Object.keys(updateObject);
     var tableName = that.dbModel.tableName;
